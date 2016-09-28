@@ -1,16 +1,16 @@
-﻿#########################################################################
-# __________                           _________.__           .__  .__   
-# \______   \______  _  __ ___________/   _____/|  |__   ____ |  | |  |  
-#  |     ___/  _ \ \/ \/ // __ \_  __ \_____  \ |  |  \_/ __ \|  | |  |  
-#  |    |  (  <_> )     /\  ___/|  | \/        \|   Y  \  ___/|  |_|  |__
-#  |____|   \____/ \/\_/  \___  >__| /_______  /|___|  /\___  >____/____/
-#                             \/             \/      \/     \/    
-#      ____________________________________________________________
-#     | functions.ps1 - PowerShell functions for AD administrators |
-#      ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯     
-#########################################################################
+﻿###########################################################################
+# __________                           _________.__           .__  .__    #
+# \______   \______  _  __ ___________/   _____/|  |__   ____ |  | |  |   #
+#  |     ___/  _ \ \/ \/ // __ \_  __ \_____  \ |  |  \_/ __ \|  | |  |   #
+#  |    |  (  <_> )     /\  ___/|  | \/        \|   Y  \  ___/|  |_|  |__ #
+#  |____|   \____/ \/\_/  \___  >__| /_______  /|___|  /\___  >____/____/ #
+#                             \/             \/      \/     \/            # 
+#       ____________________________________________________________      #
+#      | functions.ps1 - PowerShell functions for AD administrators |     #
+#       ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯      #
+###########################################################################
 
-# CHANGE LOG ############################################################
+# CHANGE LOG ##############################################################
 #
 # 22/9/2016 - Nick James <omniomi>
 #     - File created
@@ -31,13 +31,13 @@
 #     - [Added] Do-LockoutAudit
 #
     
-# NOTES #################################################################
+# NOTES ###################################################################
 #
 # * All cmdlets are detailed and you can use Get-Help <cmdlet>.
 # * Get-TaskUsers requires PowerShell be run elevated.
 #
 
-# FUNCTION LIST #########################################################
+# FUNCTION LIST ###########################################################
 #
 # List users logged on to a machine or check for a specific user.
 # Get-LoggedOn
@@ -111,10 +111,7 @@
 #  [<CommonParameters>]
 #
 
-# FEATURE REQUESTS / COMING SOON ########################################
-#
-
-#########################################################################
+###########################################################################
 
 <#
 .Synopsis
@@ -190,30 +187,38 @@ function Get-LoggedOn
 
     Begin
     {
-        if (!$ShowErrors) {
+        if (!$ShowErrors) 
+        {
             #This stops PowerShell from showing connection failures when piping a large list of machines to the command.
             $ErrorActionPreference= 'silentlycontinue'
         }
     }
     Process
     {
-        foreach ($computer in $name) {
+        foreach ($computer in $name) 
+        {
             $proc = qwinsta /server:$Computer | foreach {(($_.trim() -replace "\s+",","))} | ConvertFrom-Csv
-            if ($CheckFor) {
-                ForEach ($p in $proc) {
+            if ($CheckFor) 
+            {
+                ForEach ($p in $proc) 
+                {
                     $temp = $p.SessionName
                     $temp2 = $p.Username
 
-                    if ($temp -like "*$CheckFor*" -Or $temp2 -like "*$CheckFor*") {
+                    if ($temp -like "*$CheckFor*" -Or $temp2 -like "*$CheckFor*") 
+                    {
                         write-host "$CheckFor is logged on to $Computer" -ForegroundColor green
                         $loggedon = 1
                     } 
                 }
 
-                if ($loggedon -ne 1 -and !$SupressNegative) {
+                if ($loggedon -ne 1 -and !$SupressNegative) 
+                {
                         write-host "$CheckFor is not logged on to $Computer" -ForegroundColor red
                 }
-            } elseif (!$CheckFor) {
+            } 
+            elseif (!$CheckFor) 
+            {
                 Write-Host "`n# $Computer - Logged on Users"
                 qwinsta /server:$Computer
             }
@@ -303,29 +308,37 @@ function Get-ServiceUsers
 
     Begin
     {
-        if (!$ShowErrors) {
+        if (!$ShowErrors) 
+        {
             #This stops PowerShell from showing connection failures when piping a large list of machines to the command.
             $ErrorActionPreference= 'silentlycontinue'
         }
     }
     Process
     {
-        foreach ($computer in $name) {
+        foreach ($computer in $name) 
+        {
             $proc = Get-WmiObject -ComputerName $Computer win32_service | Select-Object Name,StartName
-            if ($CheckFor) {
-                ForEach ($p in $proc) {
+            if ($CheckFor) 
+            {
+                ForEach ($p in $proc) 
+                {
 	                $temp = $P.StartName
                     $temp2 = $P.Name
-	  	            if ($temp -like "*$CheckFor*") {
+	  	            if ($temp -like "*$CheckFor*") 
+                    {
 			            write-host "$temp is running $temp2 on $Computer" -ForegroundColor green
                         $inlist = 1
                     }
                 }
-                if ($inlist -ne 1 -and !$SupressNegative) {
+                if ($inlist -ne 1 -and !$SupressNegative) 
+                {
                         write-host "$CheckFor is not running any services on $Computer" -ForegroundColor red
                 }
             
-            } elseif (!$CheckFor) {
+            } 
+            elseif (!$CheckFor) 
+            {
                 Get-WmiObject -ComputerName $Computer win32_service | Select-Object StartName | Sort-Object StartName -Unique
             }
         }
@@ -404,26 +417,34 @@ function Get-LocalGroupMembers
 
     Begin
     {
-        if (!$ShowErrors) {
+        if (!$ShowErrors) 
+        {
             #This stops PowerShell from showing connection failures when piping a large list of machines to the command.
             $ErrorActionPreference= 'silentlycontinue'
         }
     }
     Process
     {
-        foreach ($computer in $name) {
+        foreach ($computer in $name) 
+        {
             $check = Gwmi win32_groupuser –computer $computer  
             $check = $check | Where-Object {$_.groupcomponent –match ".*$GroupName.*"} 
             if ($CheckFor) {
-                if ($check -like "*$CheckFor*") {
+                if ($check -like "*$CheckFor*") 
+                {
                     Write-Host "$CheckFor is listed in the $GroupName group on $computer." -ForegroundColor Green
-                } elseif ($check -notlike "*$CheckFor*" -and !$SupressNegative) {
+                } 
+                elseif ($check -notlike "*$CheckFor*" -and !$SupressNegative) 
+                {
                     Write-Host "$CheckFor is not directly listed in the $GroupName group on $computer." -ForegroundColor Red
                 }
             
-            } elseif (!$CheckFor) {
+            } 
+            elseif (!$CheckFor) 
+            {
                 Write-Host "`n# $Computer - $GroupName"
-                $check | ForEach-Object {
+                $check | ForEach-Object 
+                {
                     $_.partcomponent –match “.+Domain\=(.+)\,Name\=(.+)$” > $nul 
                     $matches[1].trim('"') + “\” + $matches[2].trim('"') 
                 } 
@@ -497,7 +518,8 @@ function Get-Administrators
 
     Begin
     {
-        if (!$ShowErrors) {
+        if (!$ShowErrors) 
+        {
             #This stops PowerShell from showing connection failures when piping a large list of machines to the command.
             $ErrorActionPreference= 'silentlycontinue'
         }
@@ -507,12 +529,18 @@ function Get-Administrators
     }
     Process
     {
-        foreach ($computer in $name) {
-            if ($CheckFor -and !$SupressNegative) {
+        foreach ($computer in $name) 
+        {
+            if ($CheckFor -and !$SupressNegative) 
+            {
                 Get-LocalGroupMembers $computer -CheckFor $CheckFor -GroupName $Group
-            } if ($CheckFor -and $SupressNegative) {
+            } 
+            if ($CheckFor -and $SupressNegative) 
+            {
                 Get-LocalGroupMembers $computer -CheckFor $CheckFor -GroupName $Group -SupressNegative
-            } elseif (!$CheckFor) {
+            } 
+            elseif (!$CheckFor) 
+            {
                 Get-LocalGroupMembers $computer -GroupName $Group
             }
         }
@@ -582,7 +610,8 @@ function Get-RDPUsers
 
     Begin
     {
-        if (!$ShowErrors) {
+        if (!$ShowErrors) 
+        {
             #This stops PowerShell from showing connection failures when piping a large list of machines to the command.
             $ErrorActionPreference= 'silentlycontinue'
         }
@@ -592,12 +621,18 @@ function Get-RDPUsers
     }
     Process
     {
-        foreach ($computer in $name) {
-            if ($CheckFor -and !$SupressNegative) {
+        foreach ($computer in $name) 
+        {
+            if ($CheckFor -and !$SupressNegative) 
+            {
                 Get-LocalGroupMembers $computer -CheckFor $CheckFor -GroupName $Group
-            } if ($CheckFor -and $SupressNegative) {
+            } 
+            if ($CheckFor -and $SupressNegative) 
+            {
                 Get-LocalGroupMembers $computer -CheckFor $CheckFor -GroupName $Group -SupressNegative
-            } elseif (!$CheckFor) {
+            } 
+            elseif (!$CheckFor) 
+            {
                 Get-LocalGroupMembers $computer -GroupName $Group
             }
         }
@@ -669,17 +704,22 @@ function Copy-GroupToGroup
     {
         $Users = Get-ADGroupMember -Identity $Source | select samAccountName
 
-        ForEach ($User in $Users) {
+        ForEach ($User in $Users) 
+        {
             Add-ADGroupMember -Identity $Destination -Members $User
         }
 
-        if ($ShowList) { 
+        if ($ShowList) 
+        { 
             Write-Host "The following users were copied from $Source to $Destination" -ForegroundColor Green
-            ForEach ($User in $Users) {
+            ForEach ($User in $Users) 
+            {
                 $Display = $User.samAccountName
                 Write-Host "    $Display"
             }
-        } elseif (!$ShowList) {
+        } 
+        elseif (!$ShowList) 
+        {
             Write-Host "All users were copied from $Source to $Destination" -ForegroundColor Green
         }
     }
@@ -762,34 +802,42 @@ function Get-TaskUsers
 
     Begin
     {
-        if (!$ShowErrors) {
+        if (!$ShowErrors) 
+        {
             #This stops PowerShell from showing connection failures when piping a large list of machines to the command.
             $ErrorActionPreference= 'silentlycontinue'
         }
     }
     Process
     {
-        foreach ($computer in $name) {
-            if ($CheckFor) {
+        foreach ($computer in $name) 
+        {
+            if ($CheckFor) 
+            {
                 $schtask = schtasks.exe /query /s $Name /V /FO CSV | ConvertFrom-Csv | Select TaskName,Author,"Task To Run","Run As User",Status
                 ForEach ($p in $schtask) {
                     $temp = $p."Run As User"
                     $temp2 = $p.TaskName
                     $temp3 = $p.status
 
-                    if ($temp -like "*$CheckFor*") {
+                    if ($temp -like "*$CheckFor*") 
+                    {
                         Write-Host "$temp is being used to run ""$temp2"" on $computer."'['"Task Status: $temp3"']' -ForegroundColor Green
                         $taskuser = 1
                     }
                 }
 
-                if ($taskuser -ne 1 -and !$SupressNegative) {
+                if ($taskuser -ne 1 -and !$SupressNegative) 
+                {
                     Write-Host "$CheckFor was not found to be running any tasks on $computer." -ForegroundColor Red
                 }
-            } elseif (!$CheckFor) {
+            } 
+            elseif (!$CheckFor) 
+            {
                 $Users = schtasks.exe /query /s $Name /V /FO CSV | ConvertFrom-Csv | Select "Run As User" | Sort-Object "Run As User" -Unique
                 Write-Host "The following unique users were found to be running tasks on $Computer"
-                foreach ($user in $users) {
+                foreach ($user in $users) 
+                {
                     Write-Host '    '$user."Run as User"
                 }
             }
