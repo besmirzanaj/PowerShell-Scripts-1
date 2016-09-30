@@ -659,14 +659,17 @@ function Get-RDPUsers
    Show the users who were copied.
 
 .EXAMPLE
-   Copy-GroupToGroup -Source Toronto_Office -Destination All_Canada -ShowList
+   PS Z:\> Copy-GroupToGroup -Source Toronto_Office -Destination All_Canada
 
-   This example will copy all members of Toronto_Office in to All_Canada.
+   All users were copied from Toronto_Office to All_Canada
 
 .EXAMPLE
-   Copy-GroupToGroup -Source Toronto_Office -Destination All_Canada -ShowList
+   PS Z:\>  Copy-GroupToGroup -Source Toronto_Office -Destination All_Canada -ShowList
 
-   This example will copy all members of Toronto_Office in to All_Canada and output the list of users that were copied.
+   The following users were copied from Toronto_Office to All_Canada
+       BobSm
+       JohnD
+       JaneD
 #>
 function Copy-GroupToGroup
 {
@@ -756,7 +759,7 @@ function Copy-GroupToGroup
         SYSTEM
       
 .EXAMPLE
-   PS C:\Windows\system32> Get-TaskUsers sqldb01
+   PS Z:\> Get-TaskUsers sqldb01
    The following unique users were found to be running tasks on sqldb01
         Administrators
         Everyone
@@ -769,7 +772,7 @@ function Copy-GroupToGroup
         DOM\SVC-Backup
 
 .EXAMPLE
-   PS C:\Windows\system32> Get-TaskUsers sqldb01 -CheckFor SVC-Backup
+   PS Z:\> Get-TaskUsers sqldb01 -CheckFor SVC-Backup
    
    DOM\SVC-Backup is being used to run "\Robocopy to backup09" on sqldb01. [ Task Status: Ready ]
 #>
@@ -858,7 +861,7 @@ function Get-TaskUsers
    This workflow checks to see if the user is running any tasks on the machine, is running any services on the machine, or has any stale sessions on the machine.
 
 .EXAMPLE
-   PS C:\Windows\system32> Do-LockoutAudit -User BobSm -CallerComputer TerminalServer01
+   PS Z:\> Do-LockoutAudit -User BobSm -CallerComputer TerminalServer01
 
    BobSm is logged on to TerminalServer01
    BobSm is not running any services on TerminalServer01
