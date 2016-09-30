@@ -3,33 +3,33 @@
    Send a message to a HipChat room using the V2 API.
    Authentication by token required, with scope send_notification.
 
-.PARAMEMTER HipChatURL
+.PARAMETER HipChatURL
    The base url for HipChat. Example: api.hipchat.com
    Do not include https:// or the trailing slash. (Stripped if entered)
 
    Defaults to 'api.hipchat.com'.
    
-.PARAMEMTER Token
+.PARAMETER Token
    The API Token with scope send_notification. Generated at: <hipchat url>/rooms/tokens/<roomid>.
 
-.PARAMEMTER RoomID
+.PARAMETER RoomID
    The id or url encoded name of the room.
 
-.PARAMEMTER From
+.PARAMETER From
    A label to be shown in addition to the sender's name. (Max Length: 64)
 
    The sender's name is defined by the label of the API Token and cannot be changed by this script.
 
-.PARAMEMTER Color
+.PARAMETER Color
    Background color for message.
    
    Valid values: yellow, green, red, purple, gray, random.
    Defaults to 'gray'.
 
-.PARAMEMTER Message
+.PARAMETER Message
    The message to be sent to the room. Use `n for new line and `t for tab. (Max Length: 10000)
 
-.PARAMEMTER NotifyUsers
+.PARAMETER NotifyUsers
    Whether this message should trigger a user notification (change the tab color, play a sound, notify mobile phones, etc). Each recipient's notification preferences are taken into account.
 
 .PARAMETER UseHTTP
