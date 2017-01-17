@@ -28,7 +28,7 @@
 #     - [Added] -ShowErrors to all Get cmdlets to display errors.
 #
 # 17/1/2017 - Nick James <omniomi>
-#     - Get-LoggedOn and Get-ServiceUsers rewritted to be object oriented.
+#     - Get-LoggedOn and Get-ServiceUsers rewritten to be object oriented.
 #
     
 # NOTES ###################################################################
