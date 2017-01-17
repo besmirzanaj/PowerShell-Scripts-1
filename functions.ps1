@@ -27,8 +27,8 @@
 #     - [Changed] All -ShowNegative to -SupressNegative, this reverses behaviour. 
 #     - [Added] -ShowErrors to all Get cmdlets to display errors.
 #
-# 28/9/2016 - Nick James <omniomi>
-#     - [Added] Do-LockoutAudit
+# 17/1/2017 - Nick James <omniomi>
+#     - Get-LoggedOn and Get-ServiceUsers rewritted to be object oriented.
 #
     
 # NOTES ###################################################################
@@ -37,315 +37,344 @@
 # * Get-TaskUsers requires PowerShell be run elevated.
 #
 
-# FUNCTION LIST ###########################################################
-#
-# List users logged on to a machine or check for a specific user.
-# Get-LoggedOn
-#  [[-Name] <String>] 
-#  [-CheckFor <String>] 
-#  [-SupressNegative] 
-#  [-ShowErrors] 
-#  [<CommonParameters>] 
-#
-##
-# List users being used to run services or check for a specific user.
-# Get-ServiceUsers
-#  [[-Name] <String>] 
-#  [-CheckFor <String>] 
-#  [-SupressNegative] 
-#  [-ShowErrors] 
-#  [<CommonParameters>]
-#
-##
-# List users being used as the "Run As User" for tasks or cechk for a specific user.
-# Get-TaskUsers
-#  [[-Name] <String>] 
-#  [-CheckFor <String>] 
-#  [-SupressNegative] 
-#  [-ShowErrors] 
-#  [<CommonParameters>]
-#
-##
-# List users and groups in a built-in group on a computer or check for a specific user.
-# Get-LocalGroupMembers
-#  [[-Name] <String>] 
-#  -GroupName <String>
-#  [-CheckFor <String>] 
-#  [-SupressNegative] 
-#  [-ShowErrors] 
-#  [<CommonParameters>]
-#
-##
-# As above, checks "Administrators" built in group.
-# Get-Administrators
-#  [[-Name] <String>] 
-#  [-CheckFor <String>] 
-#  [-SupressNegative] 
-#  [-ShowErrors] 
-#  [<CommonParameters>]
-#
-##
-# As above, checks "Remote Desktop Users" built in group.
-# Get-RDPUsers
-#  [[-Name] <String>] 
-#  [-CheckFor <String>] 
-#  [-SupressNegative] 
-#  [-ShowErrors] 
-#  [<CommonParameters>]
-#
-##
-# Copy users from one Active Directory group to another.
-# Copy-GroupToGroup
-#  [-Source] <String> 
-#  [-Destination] <String>
-#  [-ShowList]
-#  [-ShowErrors]
-#  [<CommonParameters>]
-#
-##
-# Perform Get-LoggedOn, Get-ServiceUsers, and Get-TaskUsers against a single machine with a check for a specific user.
-# Do-LockoutAudit
-#  [[-User] <string>]
-#  [[-CallerComputer] <string>]
-#  [<WorkflowCommonParameters>]
-#  [<CommonParameters>]
-#
-
 ###########################################################################
 
 <#
-.Synopsis
-   Get a list of users logged on to a computer or check for a specific user.
+	.SYNOPSIS
+		List the users that are logged on to a computer or check for a specific user.
 
-.DESCRIPTION
-   Uses Query Session to list the active sessions on the local machine, a remote machine, or a list of remote machines or to check for a username against the list.
+	.DESCRIPTION
+		This function uses the CMD application query.exe to list the users on the local system, a remote system, or a group of remote systems. It converts the query.exe objects.
 
-.PARAMETER Name
-   A single or list of computer names to perform search against.
+		When using the -CheckFor parameter you are able to check for a specific user and the function will return true/false.
 
-.PARAMETER CheckFor
-   A username or partial username to check for in the list of logged on users.
+	.PARAMETER  Name
+		The computer name to be queried. 
 
-.PARAMETER SupressNegative
-   Do not show negative results for -CheckFor.
+	.PARAMETER  CheckFor
+		A specific username to look for.
 
-.PARAMETER ShowErrors
-   Show all errors.
+	.EXAMPLE
+		PS C:\> Get-LoggedOn
 
-.EXAMPLE
-   PS Z:\> Get-LoggedOn
+		ComputerName Username SessionState SessionType
+		------------ -------- ------------ -----------
+		JDOE-Laptop  JohnD    Active       console
 
-   # BOBSMITH-PC - Logged on Users
-    SESSIONNAME       USERNAME                 ID  STATE   TYPE        DEVICE 
-    services                                    0  Disc                        
-    console           BobSm                     1  Active                      
-    rdp-tcp                                 65536  Listen                    
+		- Description - 
+		In this example without parameters the command returns locally logged in users.
 
-.EXAMPLE
-   PS Z:\> Get-LoggedOn terminalserver01
+	.EXAMPLE
+		PS C:\> Get-LoggedOn -Name TERMSERV01
 
-   # terminalserver01 - Logged on Users
-    SESSIONNAME       USERNAME                 ID  STATE   TYPE        DEVICE 
-    services                                    0  Disc                        
-    console                                     1  Conn                        
-    rdp-tcp#0         BobSm                     2  Active  rdpwd               
-                      JohnD                     3  Disc                        
-                      JaneD                     4  Disc                                              
-    rdp-tcp                                 65536  Listen        
+		ComputerName Username  SessionState SessionType
+		------------ --------  ------------ -----------
+		TERMSERV01   JaneD     Disconnected
+		TERMSERV01   JamesR    Disconnected
+		TERMSERV01   ToddQ     Active        rdp-tcp
+		TERMSERV01   BrianZ    Disconnected
 
-.EXAMPLE
-   PS Z:\> Get-LoggedOn terminalserver01 -CheckFor BobSm
+		- Description - 
+		When a computer name is specific you will se a list of users that are connected to that machine.
 
-   BobSm is logged on to terminalserver01
+	.EXAMPLE
+		PS C:\> Get-LoggedOn -Name TERMSERV01 -CheckFor JaneD
+
+		ComputerName IsLoggedOn
+		------------ ----------
+		TERMSERV01         True
+
+		- Description - 
+		CheckFor allows you to check for a specific user on a remote machine.
+
+	.EXAMPLE
+		PS C:\> Get-LoggedOn -Name NONEXISTENT -CheckFor JaneD
+
+		ComputerName IsLoggedOn
+		------------ ----------
+		NONEXISTENT  [ERROR]
+
+		- Description - 
+		If query.exe cannot access the compute for any reason it will return [ERROR]
+
+	.EXAMPLE
+		PS C:\> Get-ADComputer -Filter 'name -like "TERMSERV*"' | Get-LoggedOn -CheckFor JaneD
+
+		ComputerName   IsLoggedOn
+		------------   ----------
+		TERMSERV01          False
+		TERMSERV02           True
+		TERMSERV03          False
+
+		- Description - 
+		You can pipe a list of computers to check multiple machines at the same time.
+
+	.INPUTS
+		System.String
+
+	.OUTPUTS
+		PSCustomObject
+
 #>
+
 function Get-LoggedOn
 {
-    [CmdletBinding()]
-    [Alias()]
-    [OutputType([int])]
-    Param
-    (
-        # Computer Name to Check
-        [Parameter(ValueFromPipeline=$true,
-                   ValueFromPipelineByPropertyName=$true,
-                   Position=0)]
-        [Alias('ComputerName')]
-        [string]$Name = $env:COMPUTERNAME,
+	[CmdletBinding()]
+	[Alias('loggedon')]
+	[OutputType([PSCustomObject])]
+	Param
+	(
+		# Computer name to check
+		[Parameter(ValueFromPipeline = $true,
+				   ValueFromPipelineByPropertyName = $true,
+				   Position = 0)]
+		[Alias('ComputerName')]
+		[string]
+		$Name = $env:COMPUTERNAME,
+		# Username to check against logged in users.
 
-        # Username to Check For
-        [Parameter()]
-        [string]$CheckFor,
-
-        # Show negative results on CheckFor
-        [parameter()]
-        [switch]$SupressNegative,
-
-        # Show all errors
-        [parameter()]
-        [switch]$ShowErrors
-    )
-
-    Begin
-    {
-        if (!$ShowErrors) 
-        {
-            #This stops PowerShell from showing connection failures when piping a large list of machines to the command.
-            $ErrorActionPreference= 'silentlycontinue'
-        }
-    }
-    Process
-    {
-        foreach ($computer in $name) 
-        {
-            $proc = qwinsta /server:$Computer | foreach {(($_.trim() -replace "\s+",","))} | ConvertFrom-Csv
-            if ($CheckFor) 
-            {
-                ForEach ($p in $proc) 
-                {
-                    $temp = $p.SessionName
-                    $temp2 = $p.Username
-
-                    if ($temp -like "*$CheckFor*" -Or $temp2 -like "*$CheckFor*") 
-                    {
-                        write-host "$CheckFor is logged on to $Computer" -ForegroundColor green
-                        $loggedon = 1
-                    } 
-                }
-
-                if ($loggedon -ne 1 -and !$SupressNegative) 
-                {
-                        write-host "$CheckFor is not logged on to $Computer" -ForegroundColor red
-                }
-            } 
-            elseif (!$CheckFor) 
-            {
-                Write-Host "`n# $Computer - Logged on Users"
-                qwinsta /server:$Computer
-            }
-        }
-    }
-    End
-    {
-    }
+		[parameter()]
+		[string]
+		$CheckFor
+	)
+	
+	Process
+	{
+		function QueryToObject ($Computer)
+		{
+			$Output = @()
+			$Users = query user /server:$Computer 2>&1
+			if ($Users -like "*No User exists*")
+			{
+				$Output += [PSCustomObject]@{
+					ComputerName = $Computer
+					Username = $null
+					SessionState = $null
+					SessionType = "[None Found]"
+				}
+			}
+			elseif ($Users -like "*Error*")
+			{
+				$Output += [PSCustomObject]@{
+					ComputerName = $Computer
+					Username = $null
+					SessionState = $null
+					SessionType = "[Error]"
+				}
+			}
+			else
+			{
+				$Users = $Users | ForEach-Object {
+					(($_.trim() -replace ">" -replace "(?m)^([A-Za-z0-9]{3,})\s+(\d{1,2}\s+\w+)", '$1  none  $2' -replace "\s{2,}", "," -replace "none", $null))
+				} | ConvertFrom-Csv
+				
+				foreach ($User in $Users)
+				{
+					$Output += [PSCustomObject]@{
+						ComputerName = $Computer
+						Username = $User.USERNAME
+						SessionState = $User.STATE.Replace("Disc", "Disconnected")
+						SessionType = $($User.SESSIONNAME -Replace '#', '' -Replace "[0-9]+", "")
+					}
+					
+				}
+			}
+			return $Output | Sort-Object -Property ComputerName
+		}
+		
+		if ($CheckFor)
+		{
+			$Usernames = @()
+			$Sessions = @()
+			$Result = @()
+			$Users = QueryToObject -Computer $Name
+			
+			foreach ($User in $Users)
+			{
+				$Usernames += $User.Username
+				$Sessions += $User.SessionType
+			}
+			
+			if ("[Error]" -in $Sessions)
+			{
+				$Result += [PSCustomObject]@{
+					ComputerName = $Name
+					IsLoggedOn = "[ERROR]"
+				}
+			}
+			elseif ($CheckFor -in $Usernames -and "[*]" -notin $Sessions)
+			{
+				$Result += [PSCustomObject]@{
+					ComputerName = $Name
+					IsLoggedOn = $true
+				}
+			}
+			else
+			{
+				$Result += [PSCustomObject]@{
+					ComputerName = $Name
+					IsLoggedOn = $false
+				}
+			}
+			return $Result | Select-Object ComputerName, IsLoggedOn
+		}
+		elseif (!$CheckFor)
+		{
+			$Result = QueryToObject -Computer $Name
+			return $Result
+		}
+	}
+	
 }
 
 <#
 .Synopsis
-   Get a list of users being used to run services on to a remote computer.
+	Get a list of unique usernames being used to run services on a computer.
 
 .DESCRIPTION
+	Get a list of unique user's being used to run services on one or more computers. 
 
 .PARAMETER Name
-   A single or list of computer names to perform search against.
-
-.PARAMETER CheckFor
-   A username or partial username to check for in the results.
-
-.PARAMETER SupressNegative
-   Do not show negative results for -CheckFor.
-
-.PARAMETER ShowErrors
-   Show all errors.
+	A single or list of computer names to perform search against. Accepts piped input.
 
 .EXAMPLE
-   PS Z:\> Get-ServiceUsers
+	PS C:\> Get-ServiceUsers
 
-   StartName                  
-   ---------                  
-                           
-   LocalSystem                
-   NT Authority\LocalService  
-   NT AUTHORITY\NetworkService
+	Computer  Domain       Username       Services
+	--------  ------       --------       --------
+	BSMITH-LT              LocalSystem    {AdobeARMservice, AdobeUpdateService, AGSService, AMD External Events Utility...}
+	BSMITH-LT NT AUTHORITY LocalService   {AJRouter, ALG, AppIDSvc, Audiosrv...}
+	BSMITH-LT NT AUTHORITY NetworkService {aspnet_state, CryptSvc, Dnscache, Fax...}
       
 .EXAMPLE
-   PS Z:\> Get-ServiceUsers sqldb02
+	PS C:\> Get-ServiceUsers -Name SERVERDB11
 
-   StartName                         
-   ---------                         
-   localSystem                       
-   NT AUTHORITY\LocalService         
-   NT AUTHORITY\NetworkService       
-   NT Service\MsDtsServer110         
-   NT Service\MSSQLFDLauncher$SQL2K12
-   serviceusr@my.domain.dom         
-   dom\serviceusr2    
+	Computer   Domain        Username                Services
+	--------   ------        --------                --------
+	SERVERDB11               LocalSystem             {AeLookupSvc, Appinfo, AppMgmt, AudioEndpointBuilder...}
+	SERVERDB11 NT AUTHORITY  LOCALSERVICE            {ALG, AppIDSvc, AudioSrv, BFE...}
+	SERVERDB11 NT AUTHORITY  NetworkService          {AdtAgent, aspnet_state, CryptSvc, Dnscache...}
+	SERVERDB11 NT SERVICE    MsDtsServer110          {MsDtsServer110}
+	SERVERDB11 NT SERVICE    MSSQLFDLauncher$SQL2K12 {MSSQLFDLauncher$SQL2K12}
+	SERVERDB11 DOM.CORP.COM  sqlusr2                 {MSSQL$SQL2K12, SQLAgent$SQL2K12}
+	SERVERDB11 DOM           sqladmin1               {MsDtsServer100, MSSQL$SQL2K8R2, SQLAgent$SQL2K8R2} 
 
 .EXAMPLE
-   PS Z:\> Get-ServiceUsers sqldb02 -CheckFor serviceusr2
+	PS C:\> Get-ServiceUsers -Name SERVERDB11 | Where-Object {$_.Domain -like "DOM*"}
 
-   dom\serviceusr2 is running MsDtsServer100 on sqldb02
-   serviceusr2@my.domain.dom is running MSSQL$SQL2K12 on sqldb02
-   dom\serviceusr2 is running MSSQL$SQL2K8R2 on sqldb02
-   serviceusr2@my.domain.dom is running SQLAgent$SQL2K12 on sqldb02
-   dom\serviceusr2 is running SQLAgent$SQL2K8R2 on sqldb02
+	Computer   Domain        Username  Services
+	--------   ------        --------  --------
+	SERVERDB11 DOM.CORP.COM  sqlusr2   {MSSQL$SQL2K12, SQLAgent$SQL2K12}
+	SERVERDB11 DOM           sqladmin1 {MsDtsServer100, MSSQL$SQL2K8R2, SQLAgent$SQL2K8R2}
+
+	PS C:\> Get-ADComputer -Filter 'Name -Like "SERVERDB*"' | Get-ServiceUsers | Where-Object {$_.Domain -like "DOM*"} | Select Computer,Domain,Username
+
+.EXAMPLE
+	Computer   Domain        Username
+	--------   ------        --------
+	SERVERDB11 DOM.CORP.COM  sqlusr2
+	SERVERDB11 DOM           sqladmin1
+	SERBERDB14 DOM			 sqlusr2
+
+
 #>
 function Get-ServiceUsers
 {
-    [CmdletBinding()]
-    [Alias()]
-    [OutputType([int])]
-    Param
-    (
-        # Computer Name to Check
-        [Parameter(ValueFromPipeline=$true,
-                   ValueFromPipelineByPropertyName=$true,
-                   Position=0)]
-        [Alias('ComputerName')]
-        [string]$Name = $env:COMPUTERNAME,
-
-        # Username to Check For
-        [Parameter()]
-        [string]$CheckFor,
-
-        # Show negative results on CheckFor
-        [parameter()]
-        [switch]$SupressNegative,
-
-        # Show all errors
-        [parameter()]
-        [switch]$ShowErrors
-    )
-
-    Begin
-    {
-        if (!$ShowErrors) 
-        {
-            #This stops PowerShell from showing connection failures when piping a large list of machines to the command.
-            $ErrorActionPreference= 'silentlycontinue'
-        }
-    }
-    Process
-    {
-        foreach ($computer in $name) 
-        {
-            $proc = Get-WmiObject -ComputerName $Computer win32_service | Select-Object Name,StartName
-            if ($CheckFor) 
-            {
-                ForEach ($p in $proc) 
-                {
-	                $temp = $P.StartName
-                    $temp2 = $P.Name
-	  	            if ($temp -like "*$CheckFor*") 
-                    {
-			            write-host "$temp is running $temp2 on $Computer" -ForegroundColor green
-                        $inlist = 1
-                    }
-                }
-                if ($inlist -ne 1 -and !$SupressNegative) 
-                {
-                        write-host "$CheckFor is not running any services on $Computer" -ForegroundColor red
-                }
-            
-            } 
-            elseif (!$CheckFor) 
-            {
-                Get-WmiObject -ComputerName $Computer win32_service | Select-Object StartName | Sort-Object StartName -Unique
-            }
-        }
-    }
-    End
-    {
-    }
+	[CmdletBinding()]
+	[Alias()]
+	[OutputType([int])]
+	Param
+	(
+		# Computer Name to Check
+		[Parameter(ValueFromPipeline = $true,
+				   ValueFromPipelineByPropertyName = $true,
+				   Position = 0)]
+		[Alias('ComputerName')]
+		[string]
+		$Name = $env:COMPUTERNAME
+	)
+	
+	begin
+	{
+		function Split-Username ($Username)
+		{
+			if ($Username -like "*\*")
+			{
+				$Useroutput = [pscustomobject]@{
+					domain = $Username.Split('\')[0].ToUpper()
+					username = $Username.Split('\')[1]
+				}
+			}
+			elseif ($Username -like "*@*")
+			{
+				$Useroutput = [pscustomobject]@{
+					domain = $Username.Split('@')[1].ToUpper()
+					username = $Username.Split('@')[0]
+				}
+			}
+			else
+			{
+				$Useroutput = [pscustomobject]@{
+					domain = $null
+					username = $Username
+				}
+			}
+			return $Useroutput
+		}
+	}
+	
+	Process
+	{
+		try
+		{
+			Write-Verbose "Querying WMI on $Name."
+			$Proc = Get-WmiObject -ComputerName $Name win32_service -ErrorAction Stop | Select-Object Name, StartName
+		}
+		catch
+		{
+			$ErrorText = $Error[0].Exception.Message
+			$ErrorShortText = $ErrorText.ToString().Split('(')[0]
+			Write-Verbose "Could not talk to $Name : $ErrorShortText"
+			Write-Error "Could not talk to $Name : $ErrorText"
+		}
+		finally
+		{
+			$error.Clear()
+		}
+		
+		
+		$Output = @()
+		$UniqueUsers = $Proc | Select-Object StartName | Where-Object {
+			$_.StartName -ne $null
+		} | Sort-Object StartName -Unique
+		
+		foreach ($ServiceUsername in $UniqueUsers)
+		{
+			$ServiceList = @()
+			$ServicesByUser = $Proc | Select-Object StartName, Name | Where-Object {
+				$_.StartName -like $ServiceUsername.StartName
+			}
+			
+			foreach ($Service in $ServicesByUser)
+			{
+				$ServiceList += "$($Service.Name)"
+			}
+			
+			$Split = Split-Username $ServiceUsername.StartName
+			$Username = $Split.Username
+			$Domain = $Split.Domain
+			
+			$Output += [pscustomobject]@{
+				Computer = $Name
+				Domain = $Domain
+				Username = $Username
+				Services = $ServiceList
+			}
+		}
+		
+		return $Output
+		
+	}
 }
 
 <#
@@ -849,47 +878,4 @@ function Get-TaskUsers
     End
     {
     }
-}
-
-<#
-.Synopsis
-   Perform Get-TaskUsers, Get-ServiceUsers, Get-LoggedOn against a single machine checking for a particular user.
-
-.DESCRIPTION
-   When you have frequent lockouts for a particular user and identify a caller computer using EventID:4740 on the domain controller this script allows you to check for some of the more common causes of lockouts against that machine.
-
-   This workflow checks to see if the user is running any tasks on the machine, is running any services on the machine, or has any stale sessions on the machine.
-
-.EXAMPLE
-   PS Z:\> Do-LockoutAudit -User BobSm -CallerComputer TerminalServer01
-
-   BobSm is logged on to TerminalServer01
-   BobSm is not running any services on TerminalServer01
-   BobSm was not found to be running any tasks on TerminalServer01
-#>
-workflow Do-LockoutAudit 
-{
-    Param
-    (
-        # User who is being locked out.
-        [Parameter(Mandatory=$true,
-                   Position=0)]
-        [String]
-        $User,
-
-        # Caller Computer.
-        [Parameter(Mandatory=$true,
-                   Position=1)]
-        [Alias('Computer')]
-        [string]
-        $CallerComputer
-    )
-
-    parallel 
-    {
-        Get-TaskUsers -Name $CallerComputer -CheckFor $User
-        Get-ServiceUsers -Name $CallerComputer -CheckFor $User
-        Get-LoggedOn -Name $CallerComputer -CheckFor $User
-    }
-
 }
