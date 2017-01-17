@@ -282,7 +282,7 @@ function Get-ServiceUsers
 {
 	[CmdletBinding()]
 	[Alias()]
-	[OutputType([int])]
+	[OutputType([pscustomobject])]
 	Param
 	(
 		# Computer Name to Check
@@ -418,7 +418,6 @@ function Get-LocalGroupMembers
 {
     [CmdletBinding()]
     [Alias()]
-    [OutputType([int])]
     Param
     (
         # Computer Name to Check
@@ -522,7 +521,6 @@ function Get-Administrators
 {
     [CmdletBinding()]
     [Alias()]
-    [OutputType([int])]
     Param
     (
         # Computer Name to Check
@@ -614,7 +612,6 @@ function Get-RDPUsers
 {
     [CmdletBinding()]
     [Alias()]
-    [OutputType([int])]
     Param
     (
         # Computer Name to Check
@@ -704,7 +701,6 @@ function Copy-GroupToGroup
 {
     [CmdletBinding()]
     [Alias()]
-    [OutputType([int])]
     Param
     (
         # Source: Group from which members will be copied.
@@ -809,7 +805,6 @@ function Get-TaskUsers
 {
     [CmdletBinding()]
     [Alias()]
-    [OutputType([int])]
     Param
     (
         # Computer Name to Check
