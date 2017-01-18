@@ -30,6 +30,9 @@
 # 17/1/2017 - Nick James <omniomi>
 #     - Get-LoggedOn and Get-ServiceUsers rewritten to be object oriented.
 #
+# 18/1/2017 - Nick James <omniomi>
+#	  - Improvements to Get-ServiceUsers output.
+#
     
 # NOTES ###################################################################
 #
@@ -282,10 +285,11 @@ function Get-ServiceUsers
 {
 	[CmdletBinding()]
 	[Alias()]
-	[OutputType([pscustomobject])]
+	[OutputType([PSCustomObject])]
 	Param
 	(
-		# Computer Name to Check
+		# Singluar computer or list of computers to query. Accepts input from pipeline.
+		# Default value if -Name unspecified is localhost ($env:COMPUTERNAME).
 		[Parameter(ValueFromPipeline = $true,
 				   ValueFromPipelineByPropertyName = $true,
 				   Position = 0)]
@@ -296,8 +300,13 @@ function Get-ServiceUsers
 	
 	begin
 	{
+		# Verbose output.
+		Write-Verbose "Writing sub-functions to memory."
+		
+		# Split-Username splits down-level and upn format usernames in to domain and username.
 		function Split-Username ($Username)
 		{
+			# Deal with down-level usernames (domain\samaccountname).
 			if ($Username -like "*\*")
 			{
 				$Useroutput = [pscustomobject]@{
@@ -305,6 +314,7 @@ function Get-ServiceUsers
 					username = $Username.Split('\')[1]
 				}
 			}
+			# Deal with UPNs (usernames@domain).
 			elseif ($Username -like "*@*")
 			{
 				$Useroutput = [pscustomobject]@{
@@ -312,6 +322,7 @@ function Get-ServiceUsers
 					username = $Username.Split('@')[0]
 				}
 			}
+			# Deal with all else.
 			else
 			{
 				$Useroutput = [pscustomobject]@{
@@ -319,61 +330,80 @@ function Get-ServiceUsers
 					username = $Username
 				}
 			}
+			# Return split.
 			return $Useroutput
 		}
 	}
 	
 	Process
 	{
+		# Error handling for WMI Query. Will trap errors.
 		try
 		{
-			Write-Verbose "Querying WMI on $Name."
+			# Verbose output.
+			Write-Verbose "Querying WMI win32_service on $Name."
+			
+			# Query computer for services to $Proc.
 			$Proc = Get-WmiObject -ComputerName $Name win32_service -ErrorAction Stop | Select-Object Name, StartName
 		}
 		catch
 		{
+			# Error message and error message shortened to variables.
 			$ErrorText = $Error[0].Exception.Message
 			$ErrorShortText = $ErrorText.ToString().Split('(')[0]
+			
+			# Verbose and error output.
 			Write-Verbose "Could not talk to $Name : $ErrorShortText"
 			Write-Error "Could not talk to $Name : $ErrorText"
+			
+			return
 		}
 		finally
 		{
-			$error.Clear()
+			# Clear error variable.
+			$Error.Clear()
 		}
 		
 		
-		$Output = @()
+		# Determine all unique usernames in $Proc.
+		Write-Verbose "Determining unique users being used to run services on $Name."
 		$UniqueUsers = $Proc | Select-Object StartName | Where-Object {
 			$_.StartName -ne $null
 		} | Sort-Object StartName -Unique
 		
+		# Loop through unique usernames.
 		foreach ($ServiceUsername in $UniqueUsers)
 		{
+			# Define $ServiceList as an array.
 			$ServiceList = @()
+			
+			# Determine which services are being run by the current user being processed.
+			# Output to $ServiceList.
+			Write-Verbose "Listing services being run by $($ServiceUsername.StartName) on $Name."
 			$ServicesByUser = $Proc | Select-Object StartName, Name | Where-Object {
 				$_.StartName -like $ServiceUsername.StartName
 			}
-			
 			foreach ($Service in $ServicesByUser)
 			{
+				;
 				$ServiceList += "$($Service.Name)"
 			}
 			
+			# Run the StartName property through Split-Username to get domain and username as separate properties.
+			Write-Verbose "Formatting username $($ServiceUsername.StartName)."
 			$Split = Split-Username $ServiceUsername.StartName
 			$Username = $Split.Username
 			$Domain = $Split.Domain
 			
-			$Output += [pscustomobject]@{
+			# Generate Output.
+			Write-Verbose "Outputting details for $($ServiceUsername.StartName) on $Name"
+			[PSCustomObject]@{
 				Computer = $Name
 				Domain = $Domain
 				Username = $Username
 				Services = $ServiceList
 			}
 		}
-		
-		return $Output
-		
 	}
 }
 
