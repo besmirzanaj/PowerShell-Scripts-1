@@ -277,7 +277,7 @@ function Get-LoggedOn
 	--------   ------        --------
 	SERVERDB11 DOM.CORP.COM  sqlusr2
 	SERVERDB11 DOM           sqladmin1
-	SERBERDB14 DOM			 sqlusr2
+	SERBERDB14 DOM           sqlusr2
 
 
 #>
@@ -309,7 +309,8 @@ function Get-ServiceUsers
 			# Deal with down-level usernames (domain\samaccountname).
 			if ($Username -like "*\*")
 			{
-				$Useroutput = [pscustomobject]@{
+				# Return Results
+				[pscustomobject]@{
 					domain = $Username.Split('\')[0].ToUpper()
 					username = $Username.Split('\')[1]
 				}
@@ -317,7 +318,8 @@ function Get-ServiceUsers
 			# Deal with UPNs (usernames@domain).
 			elseif ($Username -like "*@*")
 			{
-				$Useroutput = [pscustomobject]@{
+				# Return Results
+				[pscustomobject]@{
 					domain = $Username.Split('@')[1].ToUpper()
 					username = $Username.Split('@')[0]
 				}
@@ -325,18 +327,24 @@ function Get-ServiceUsers
 			# Deal with all else.
 			else
 			{
-				$Useroutput = [pscustomobject]@{
+				# Return Results
+				[pscustomobject]@{
 					domain = $null
 					username = $Username
 				}
 			}
-			# Return split.
-			return $Useroutput
 		}
 	}
 	
 	Process
 	{
+		if (-not (Test-Connection $Name -Count 1 -Quiet))
+		{
+			Write-Verbose "$Name failed to respond to ping. Skipping."
+			Write-Error "Test-Connection : Test connection to computer '$Name' failed. Skipping service check."
+			return
+		}
+		
 		# Error handling for WMI Query. Will trap errors.
 		try
 		{
