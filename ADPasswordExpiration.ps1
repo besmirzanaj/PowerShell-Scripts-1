@@ -50,7 +50,7 @@ IT Support
 #########################################################################
 # Static Variables - Do Not Change
 #########################################################################
-# $ExpireDay spasneeds to be one higher that the highest number in $SendEmails
+# $ExpireDays is the highest number found in $SendEmails.
 $ExpireDays = $($SendEmails | Measure-Object -Maximum).Maximum
 
 # Create the output aaray.
