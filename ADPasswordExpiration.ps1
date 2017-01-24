@@ -15,7 +15,7 @@
 #########################################################################
 # Days out from expiry on which to send emails as an array.
 # ie, (5, 2, 1) will send emails if the password is set to expire in 5 days, 2 days, or 1 day.
-$SendEmails = @(2)
+$SendEmails = @(10,5,4,3,2,1)
 
 # Email Variables
 $MailFrom = "passwords@company.com" # Send email from
