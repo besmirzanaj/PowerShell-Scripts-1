@@ -13,14 +13,9 @@
 #########################################################################
 # User Variables
 #########################################################################
-# Max password age in days.
-# Set to 'Auto' and the script will use Get-ADDefaultDomainPasswordPolicy
-# ie, $MaxPasswordAge = 'Auto'
-$MaxPasswordAge = 90
-
 # Days out from expiry on which to send emails as an array.
 # ie, (5, 2, 1) will send emails if the password is set to expire in 5 days, 2 days, or 1 day.
-$SendEmails = @(10, 5, 4, 3, 2, 1)
+$SendEmails = @(2)
 
 # Email Variables
 $MailFrom = "passwords@company.com" # Send email from
@@ -44,7 +39,7 @@ From a computer on our network:
 
 Complexity requirements:
 - Your password must be at least 15 characters in length.
-- Your password must contain three of the follow four types of characters: lowercase letters, uppercase letters, numbers, and special characters (i.e. $, @, *, !)
+- Your password must contain three of the following four types of characters: lowercase letters, uppercase letters, numbers, and special characters (i.e. $, @, *, !)
 - Your password may not be one of the last 5 passwords you have used.
 - Your password may not contain your first name, last name, or username.
 
@@ -52,24 +47,11 @@ Regards,
 IT Support
 "@
 
-
-
 #########################################################################
 # Static Variables - Do Not Change
 #########################################################################
-# $ExpiringDays needs to be one higher that the highest number in $SendEmails
+# $ExpireDay spasneeds to be one higher that the highest number in $SendEmails
 $ExpireDays = $($SendEmails | Measure-Object -Maximum).Maximum
-$ExpireDays++
-
-# Date values.
-$Today = Get-Date
-$RangeDate = Get-Date (Get-Date).AddDays($ExpireDays)
-
-# Automatic $MaxPasswordAge
-if ($MaxPasswordAge -eq "Auto")
-{
-	$MaxPasswordAge = (Get-ADDefaultDomainPasswordPolicy).MaxPasswordAge.Days
-}
 
 # Create the output aaray.
 $Output = @()
@@ -80,37 +62,49 @@ $Output = @()
 # Send email function.
 function Send-ExpireEmail ($To, $From, $SMTPServer, $Subject, $Body, $Days, $Name)
 {
-	$Msg = New-Object Net.Mail.MailMessage
-	$SMTP = New-Object Net.Mail.SMTPClient($SMTPServer)
-	$Msg.From = "$From"
-	$Msg.ReplyTo = "$From"
-	$Msg.To.Add($To)
-	$Msg.Subject = $Subject -f $Days, $Name
+	$FinalBody = $Body -f $Days, $Name
 	if ($Days -eq "1")
 	{
-		$Msg.Subject = $($Msg.Subject) -ireplace "Days", "Day"
+		$FinalBody = $FinalBody -ireplace "Days", "Day"
 	}
-	$Msg.Body = $Body -f $Days, $Name
+	$FinalSubject = $Subject -f $Days, $Name
 	if ($Days -eq "1")
 	{
-		$Msg.Body = $($Msg.Body) -ireplace "Days", "day"
+		$FinalSubject = $FinalSubject -ireplace "Days", "Day"
 	}
-	$SMTP.Send($Msg)
+	
+	Send-MailMessage -To $To -Subject $FinalSubject -Body $FinalBody -SmtpServer $SMTPServer -From $From
 }
 
 # Find expiring users that match criteria.
-$Users = Get-ADUser -Properties PasswordLastSet, PasswordNeverExpires, EmployeeType, Mail, extensionAttribute6 -Filter 'PasswordNeverExpires -eq $False' | Where-Object {
-	($_.PasswordLastSet -ne $NULL) -and ($_.Enabled -eq $True) -and ($_.PasswordLastSet.AddDays($MaxPasswordAge) -le $RangeDate) -and ($_.PasswordLastSet.AddDays($MaxPasswordAge) -ge $Today)
-}
+## Retrieve relevant properties from objects.
+$ADProperties = @(
+	'PasswordLastSet',
+	'PasswordNeverExpires',
+	'extensionAttribute6',
+	'Mail',
+	'msDS-UserPasswordExpiryTimeComputed'
+)
+
+## Select relevant properties from query.
+$ADSelect = @(
+	'Name',
+	'Mail',
+	'extensionAttribute6',
+	'PasswordLastSet',
+	@{n = 'PasswordExpirationDate'; e = {[datetime]::FromFileTime($_.'msDS-UserPasswordExpiryTimeComputed')}},
+	@{n = 'PasswordDaysToExpired'; e = {(New-Timespan -End ([datetime]::FromFileTime($_.'msDS-UserPasswordExpiryTimeComputed'))).Days}}
+)
+
+## User Query
+$Users = Get-ADUser -Properties $ADProperties -Filter {(PasswordNeverExpires -eq $False) -and (Enabled -eq $true)} | Select-Object $ADSelect | Where-Object {($_.PasswordDaysToExpired -le $ExpireDays) -and ($_.PasswordDaysToExpired -ge 0)}
 
 # Determine attributes and whether or not to send email based on $SendEmail
 foreach ($User in $Users)
 {
-	$ExpireDate = $User.PasswordLastSet.AddDays($MaxPasswordAge)
+	$Span = $User.PasswordDaysToExpired
 	
-	$Span = New-TimeSpan -End $ExpireDate -Start $Today
-	
-	if ($($Span.Days) -in $SendEmails)
+	if ($Span -in $SendEmails)
 	{
 		
 		if ($User.Mail -eq $null -and $User.extensionAttribute6 -eq $null)
@@ -129,12 +123,11 @@ foreach ($User in $Users)
 		$Output += New-Object -TypeName PSObject -Property @{
 			Name = $User.Name
 			Email = $MailTo
-			Expires = $User.PasswordLastSet.AddDays(90)
-			Span = $Span.Days
+			Expires = $User.PasswordExpirationDate
+			Span = $Span
 		}
 	}
 }
-
 # Per-user that meets criteria: send emails.
 foreach ($ExpiringUser in $Output)
 {
